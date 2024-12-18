@@ -7,8 +7,8 @@
     (identificador (letter (arbno (or letter digit "?" "$"))) symbol)
     (numero (digit (arbno digit)) number)
     (numero ("-" digit (arbno digit)) number)
-    (numero (digit (arbno digit)"." digit (arbno digit)) number)
-    (numero ("-" digit (arbno digit)"." digit (arbno digit)) number)
+    (numero (digit (arbno digit) "." digit (arbno digit)) number)
+    (numero ("-" digit (arbno digit) "." digit (arbno digit)) number)
     )
   )
 
@@ -122,8 +122,110 @@
 )
 
 
+; Definición del entorno de ejecución
+(define empty-env '())  ; entorno vacío
 
+; Añadir una asociación al entorno
+(define (extend-env var value env)
+  (cons (cons var value) env))
 
+; Buscar el valor de una variable en el entorno
+(define (lookup-env var env)
+  (cond ((null? env) (error "Variable no encontrada" var))
+        ((eq? (caar env) var) (cdar env))
+        (else (lookup-env var (cdr env)))))
 
+; Evaluación de expresiones
+(define (eval-exp exp env)
+  (cond
+    ; Número o literal
+    ((number? exp) exp)
+    ((boolean? exp) exp)
+    ((string? exp) exp)
+    
+    ; Identificadores
+    ((symbol? exp) (lookup-env exp env))
 
+    ; Expresión `if`
+    ((list? exp) 
+     (cond
+       [(eq? (car exp) 'if)
+        (let* ((cond-exp (eval-exp (cadr exp) env))
+               (then-exp (caddr exp))
+               (else-exp (if (cadddr exp) (eval-exp (cadddr exp) env) '())))
+          (if cond-exp
+              (eval-exp then-exp env)
+              else-exp))]
+       
+       ; Expresiones let y letrec
+       [(eq? (car exp) 'let) (eval-let exp env)]
+       [(eq? (car exp) 'letrec) (eval-letrec exp env)]
+       
+       ; Evaluación de procedimientos
+       [(eq? (car exp) 'proc) (eval-proc exp env)]
+       
+       ; Evaluación de expresiones de aplicación
+       [(eq? (car exp) 'apply) (eval-apply (cadr exp) (cddr exp) env)]
+       
+       ; Evaluación de objetos y métodos
+       [(eq? (car exp) 'object) (eval-object exp env)]
+       [(eq? (car exp) 'send) (eval-send exp env)]
+       
+       ; Otros casos
+       [else (error "Expresión no válida" exp)])))
 
+; Evaluación de `let`
+(define (eval-let expr env)
+  (let* ((bindings (cadr expr))  ; los enlaces "let"
+         (body (cddr expr))      ; el cuerpo del `let`
+         (new-env (extend-env (car (car bindings))
+                              (eval-exp (cadr bindings) env)
+                              env)))
+    (eval-exp body new-env)))
+
+; Evaluación de `letrec`
+(define (eval-letrec expr env)
+  (let* ((bindings (cadr expr))
+         (body (cddr expr))
+         (new-env (extend-env-recursive bindings env)))
+    (eval-exp body new-env)))
+
+; Función auxiliar para manejar `letrec` (más compleja, dado que permite recursión)
+(define (extend-env-recursive bindings env)
+  (define (make-bindings bs env)
+    (if (null? bs)
+        env
+        (make-bindings (cdr bs)
+                       (extend-env (car (car bs)) 'uninitialized env))))
+  (define (initialize-bindings bs env)
+    (if (null? bs)
+        env
+        (initialize-bindings (cdr bs)
+                             (extend-env (car (car bs))
+                                         (eval-exp (cadr (car bs)) env)
+                                         env))))
+  (initialize-bindings bindings (make-bindings bindings env)))
+
+; Evaluación de expresión `apply` (invocación de función)
+(define (eval-apply fun-expr arg-exprs env)
+  (let* ((fun (eval-exp fun-expr env))  ; Evaluamos la función
+         (args (map (lambda (arg) (eval-exp arg env)) arg-exprs)))
+    (apply fun args)))  ; Aquí se aplicaría la función, según sea un procedimiento o método
+
+; Evaluación de la creación de objetos
+(define (eval-object expr env)
+  (let* ((fields (map (lambda (pair)
+                        (cons (car pair)
+                              (eval-exp (cdr pair) env)))  ; Evaluamos los valores de los campos
+                      (cadr expr))))
+         (new-object (lambda (field-name) 
+                       (lookup-env field-name fields))))
+    new-object))  ; Retorna la función que es el objeto
+
+; Evaluación de `send` (invocar un método de un objeto)
+(define (eval-send expr env)
+  (let* ((obj (eval-exp (cadr expr) env))  ; Evaluamos el objeto
+         (method (caddr expr))            ; Obtenemos el método
+         (args (map (lambda (arg) (eval-exp arg env)) (cdddr expr))))
+    (apply method args)))  ; Se invoca el método con los argumentos
+    
