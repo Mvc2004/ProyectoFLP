@@ -122,7 +122,7 @@
     (bool-oper (or) or-bool)))
 
     (declaracion-clase ("class" identificador "extends" identificador (arbno "field" identificador)(arbno meth-decl)) a-class-decl)
-)
+
 
 
 ; Definición del entorno de ejecución
