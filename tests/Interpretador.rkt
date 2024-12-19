@@ -3,7 +3,7 @@
 (define especificacion-lexica
   '(
     (espacio-blanco (whitespace) skip)
-    (comentario ("(*" (arbno (not #\newline)) "*)") skip)
+    (comentario ("(" (arbno (not #\newline)) ")") skip)
     (identificador (letter (arbno (or letter digit "?" "$"))) symbol)
     (numero (digit (arbno digit)) number)
     (numero ("-" digit (arbno digit)) number)
@@ -34,10 +34,11 @@
     ;; Expresiones booleanas
     (bool-expresion ("true") true-bool-exp)
     (bool-expresion ("false") false-bool-exp)
-    (bool-expresion (bool-primitiva "(" (separated-list expresion ",") ")") bool-prim-exp)
     (bool-expresion (bool-oper "(" (separated-list bool-expresion ",") ")") bool-oper-exp)
 
     ;; Primitivas booleanas
+    (bool-expresion ("(" bool-primitiva (separated-list expresion ",") ")") bool-prim-exp)
+    ;; bool primitiva
     (bool-primitiva (">") mayor-prim)
     (bool-primitiva (">=") mayorigual-prim)
     (bool-primitiva ("<") menor-prim)
@@ -45,6 +46,9 @@
     (bool-primitiva ("is") is-prim)
 
     ;; Operadores booleanos
+    (bool-expresion (bool-oper "(" (separated-list bool-expresion ",") ")") bool-oper-exp)
+    
+    ;; bool oper
     (bool-oper ("not") not-bool)
     (bool-oper ("and") and-bool)
     (bool-oper ("or") or-bool)
@@ -851,7 +855,7 @@
 
 ;;Interpretador
 (define interpretador
-  (sllgen:make-rep-loop "-->" evaluar-programa
+  (sllgen:make-rep-loop "<3" evaluar-programa
                         (sllgen:make-stream-parser
                          especificacion-lexica especificacion-gramatical)))
 
