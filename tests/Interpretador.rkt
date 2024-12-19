@@ -257,7 +257,7 @@
       
       (varr-exp (ids rands body)
                 (let ((lvalues (map (lambda (x) (evaluar-expresion x amb)) rands)))
-                  (evaluar-expresion body (ambiente-extendido ids lvalues amb))))
+                  (evaluar-expresion body (ambiente-extendido-ref ids (list->vector lvalues) amb))))
       
       ;; Iteración
       (for-exp (var start-expr end-expr body)
@@ -361,86 +361,53 @@
 ;;Evaluar Primitivas Booleanas
 
 (define evaluar-bool-primitiva
-  (lambda(prim lval)
+  (lambda (prim lval)
     (cases bool-primitiva prim
-      (mayor-prim ()(operacion-bool-prim lval > #f))
+      (mayor-prim () (> (car lval) (cadr lval)))  ;; Evaluación directa
       (mayorigual-prim () (>= (car lval) (cadr lval)))
-      (menor-prim () (operacion-bool-prim lval < #f))
-      (menorigual-prim () (operacion-bool-prim lval <= #f))
-      (is-prim () (operacion-bool-prim lval = #f))
-      [else (eopl:error "Operación booleana primitiva no reconocida" prim)]
-      )))
+      (menor-prim () (< (car lval) (cadr lval)))
+      (menorigual-prim () (<= (car lval) (cadr lval)))
+      (is-prim () (= (car lval) (cadr lval))) ;; Aquí se evalúa directamente el operador `=`
+      [else (eopl:error "Operación booleana primitiva no reconocida" prim)])))
 
-(define operacion-bool-prim
-  (lambda (lval op term)
-    (cond
-      [(null? lval) term]
-      [else
-       (op
-        (car lval)
-        (operacion-bool-prim (cdr lval) op term))
-       ]
-      )
-    )
-  )
 
 ;;Evaluar Operaciones Booleanas
 
 (define evaluar-bool-operacion
   (lambda (op args)
     (cases bool-oper op
-      (not-bool () (operacion-bool-oper args args not))  ;; Negación (not)
+      (not-bool () (operacion-bool-oper args (lambda (x) (not x))))  ;; Negación (not)
       (and-bool () (operacion-bool-oper args (lambda (x y) (and x y)))) ;; Conjunción (and)
       (or-bool () (operacion-bool-oper args (lambda (x y) (or x y))))  ;; Disyunción (or)
-)))
+      [else (eopl:error "Operación booleana no reconocida" op)])))
 
 (define operacion-bool-oper
   (lambda (lval op)
     (cond
-      [(null? lval) #t]  ;; Si la lista está vacía, devolvemos true para 'and', ya que 'and' no debe fallar si no hay elementos.
-      [(= (length lval) 1) (car lval)]  ;; Si solo hay un elemento, devolvemos ese elemento directamente.
+      [(null? lval) #t]  ;; Para 'and', si la lista está vacía, devolvemos true.
+      [(= (length lval) 1) (car lval)]  ;; Si solo hay un elemento, devolvemos ese valor directamente.
       [else
-       (op
-        (car lval)
-        (operacion-bool-oper (cdr lval) op))]  ;; Recursión: aplica la operación entre el primer valor y el resto de la lista.
+       (op (car lval) (operacion-bool-oper (cdr lval) op))]  ;; Recursión: aplica la operación entre el primer valor y el resto de la lista.
     )
   )
 )
 
 
+
 ;;Manejo de primitivas
 (define evaluar-primitiva
-  (lambda (prim lval)
+  (lambda (prim lvalues)
     (cases primitiva prim
-      (sum-prim () (operacion-prim lval + 0))
-      (minus-prim () (operacion-prim lval - 0))
-      (mult-prim () (operacion-prim lval * 1))
-      (div-prim () (operacion-prim lval / 1))
-      (mod-prim () (if (= (length lval) 2)
-                       (modulo (car lval) (cadr lval))
-                       (eopl:error "mod-prim requiere exactamente 2 argumentos" lval)))
-      (text-prim() (operacion-prim lval string-append "")) ;; Concatenamos con acumulador vacío.
-      )
+      (sum-prim () (apply + lvalues))
+      (minus-prim () (apply - lvalues))
+      (mult-prim () (apply * lvalues))
+      (div-prim () (apply  lvalues))
+      (mod-prim () (apply modulo lvalues))
+      (text-prim () (apply string-append lvalues))
     )
   )
+)
 
-
-(define operacion-prim
-  (lambda (lval op term)
-    (cond
-       [(null? lval) term]
-       [(string? (car lval)) ;; Si es una cadena, aplicamos la concatenación.
-        (string-append
-         (car lval)
-         (operacion-prim (cdr lval) op term))]
-      [else
-       (op
-        (car lval)
-        (operacion-prim (cdr lval) op term))
-       ]
-      )
-    )
-  )
 ;; Implementación de object-update! para actualizar campos de objetos
 (define object-update!
   (lambda (obj field-id new-value)
@@ -470,7 +437,7 @@
   (lambda (sym los)
     (let loop ((los los) (pos 0))
       (cond
-        ((null? los) #f)
+        ((null? los) #f) 
         ((eqv? sym (car los)) pos)
         (else (loop (cdr los) (+ pos 1)))))))
 
@@ -854,9 +821,5 @@
   (sllgen:make-rep-loop "-->" evaluar-programa
                         (sllgen:make-stream-parser
                          especificacion-lexica especificacion-gramatical)))
-
-
-
-
 
 (interpretador)
