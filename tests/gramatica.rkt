@@ -43,17 +43,20 @@
     ;;fin procedimientos
     
     ;metodo
-    (expresion ("meth" "(" identificador "," (separeted-list identificador ",") ")" expresion "end") method-decl)
+   (expresion ("meth" "(" identificador "," (separated-list identificador ",") ")" expresion "end") method-decl)
+
     ;--------------
     (expresion ("(" expresion (arbno expresion) ")") app-exp)
 
     ;iteracion
-    (expresion ("for" identificador "=" expresion "to" expresion "do" expresion "end → ")
+    (expresion ("for" identificador "=" expresion "to" expresion "do" expresion "end") for-exp)
+
     ;----------
 
     
     ;;procedimientos recursivos
-    (expresion ("letrec" (arbno identificador "(" (separated-list identificador ",") ")" "=" expresion) "in → "expresion "end") letrec-exp) 
+   (expresion ("letrec" (arbno identificador "(" (separated-list identificador ",") ")" "=" expresion) "in" expresion "end") letrec-exp)
+
     ;;fin de procedimientos recursivos
 
     (expresion (primitiva "(" (arbno expresion) ")") prim-exp)
@@ -91,7 +94,7 @@
     (primitiva ("+") sum-prim)
     (primitiva ("-") minus-prim)
     (primitiva ("*") mult-prim)
-    "(primitiva ("/") div-prim)"
+    (primitiva ("/") div-prim)
     (primitiva ("%") porcentaje-prim)
     (primitiva ("&") text-prim)
     (primitiva ("add1") add-prim)
